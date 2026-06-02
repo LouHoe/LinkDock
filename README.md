@@ -24,6 +24,16 @@ Just open the app and start adding shortcuts. Your data is saved automatically i
 | `Del` | Delete selected |
 | `Esc` | Deselect |
 
+## Arguments (optional)
+
+The **Arguments** field lets you pass command-line parameters to an executable when you open it. Leave it blank for URLs and regular files — it only applies to programs you want to launch with specific options.
+
+| Name | Target | Args |
+|------|--------|------|
+| Chrome Incognito | `C:\Program Files\Google\Chrome\Application\chrome.exe` | `--incognito` |
+| Notepad with file | `C:\Windows\notepad.exe` | `C:\notes\todo.txt` |
+| Python script | `C:\Python\python.exe` | `C:\scripts\myscript.py` |
+
 ## Limitations
 
 The web version cannot open local file paths directly — this is a browser security restriction. Local paths are copied to your clipboard instead so you can paste them into Explorer.
