@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LinkDock</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px;
+            background: #f0f2f5;
+            color: #1a1a2e;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ── Header ── */
+        header {
+            background: #1a1a2e;
+            color: white;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            flex-shrink: 0;
+        }
+        header h1 { font-size: 18px; font-weight: 600; letter-spacing: 0.5px; }
+
+        /* ── Toolbar ── */
+        .toolbar {
+            background: white;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 6px 14px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: background 0.15s, opacity 0.15s;
+            white-space: nowrap;
+        }
+        .btn:disabled { opacity: 0.38; cursor: not-allowed; }
+
+        .btn-primary   { background: #1a1a2e; color: white; }
+        .btn-primary:not(:disabled):hover   { background: #2d2d50; }
+        .btn-secondary { background: #f0f2f5; color: #333; border: 1px solid #d0d0d0; }
+        .btn-secondary:not(:disabled):hover { background: #e0e2e5; }
+        .btn-danger    { background: #dc3545; color: white; }
+        .btn-danger:not(:disabled):hover    { background: #c82333; }
+        .btn-success   { background: #28a745; color: white; }
+        .btn-success:not(:disabled):hover   { background: #218838; }
+
+        .divider { width: 1px; background: #ddd; height: 24px; margin: 0 4px; flex-shrink: 0; }
+
+        .search-box {
+            margin-left: auto;
+            padding: 6px 12px;
+            border: 1px solid #d0d0d0;
+            border-radius: 4px;
+            font-size: 13px;
+            width: 280px;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .search-box:focus { border-color: #1a1a2e; box-shadow: 0 0 0 2px rgba(26,26,46,0.1); }
+
+        /* ── Main ── */
+        main {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .drop-zone {
+            flex: 1;
+            overflow: auto;
+            position: relative;
+        }
+        .drop-zone.drag-over { outline: 3px dashed #1a1a2e; outline-offset: -3px; }
+        .drop-overlay {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: rgba(26,26,46,0.82);
+            color: white;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            font-weight: 600;
+            pointer-events: none;
+            z-index: 50;
+        }
+        .drop-zone.drag-over .drop-overlay { display: flex; }
+
+        /* ── Table ── */
+        table { width: 100%; border-collapse: collapse; background: white; }
+
+        thead { position: sticky; top: 0; z-index: 10; }
+
+        th {
+            background: #f8f9fa;
+            padding: 10px 14px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #555;
+            border-bottom: 2px solid #e0e0e0;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+        th:hover { background: #edf0f3; }
+        th.sort-asc::after  { content: ' ▲'; font-size: 10px; }
+        th.sort-desc::after { content: ' ▼'; font-size: 10px; }
+
+        td {
+            padding: 9px 14px;
+            border-bottom: 1px solid #f0f0f0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 0;
+        }
+        tbody tr:hover td   { background: #f8f9fb; }
+        tbody tr.selected td { background: #e3e8f8; }
+
+        .col-name   { width: 22%; }
+        .col-target { width: 50%; }
+        .col-tags   { width: 15%; }
+        .col-added  { width: 13%; }
+
+        .target-link { color: #1a73e8; text-decoration: none; }
+        .target-link:hover { text-decoration: underline; }
+
+        .tag-chip {
+            display: inline-block;
+            background: #e8f0fe;
+            color: #1558b0;
+            padding: 1px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            margin: 1px 2px;
+            white-space: nowrap;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: #aaa;
+            background: white;
+        }
+        .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+        .empty-state strong { font-size: 16px; color: #777; }
+        .empty-state p { margin-top: 6px; font-size: 13px; }
+
+        /* ── Status bar ── */
+        .statusbar {
+            background: #f8f9fa;
+            border-top: 1px solid #e0e0e0;
+            padding: 5px 16px;
+            font-size: 12px;
+            color: #666;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .statusbar .hints { margin-left: auto; }
+        kbd {
+            background: #eee;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            padding: 1px 5px;
+            font-size: 11px;
+            font-family: monospace;
+        }
+
+        /* ── Modal ── */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.open { display: flex; }
+
+        .modal {
+            background: white;
+            border-radius: 8px;
+            width: 520px;
+            max-width: 95vw;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.28);
+            overflow: hidden;
+            animation: modalIn 0.15s ease;
+        }
+        @keyframes modalIn { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        .modal-header {
+            background: #1a1a2e;
+            color: white;
+            padding: 14px 20px;
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .modal-body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+
+        .field label {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            color: #555;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .field label .hint { font-weight: 400; text-transform: none; color: #999; letter-spacing: 0; }
+
+        .field input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d0d0d0;
+            border-radius: 4px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .field input:focus { border-color: #1a1a2e; box-shadow: 0 0 0 2px rgba(26,26,46,0.1); }
+        .field input.error { border-color: #dc3545; }
+
+        .modal-footer {
+            padding: 12px 20px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            border-top: 1px solid #f0f0f0;
+            background: #fafafa;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>🔗 LinkDock</h1>
+</header>
+
+<div class="toolbar">
+    <button class="btn btn-primary"   id="btnAdd">+ Add</button>
+    <button class="btn btn-secondary" id="btnEdit"   disabled title="Ctrl+E">Edit</button>
+    <button class="btn btn-danger"    id="btnDelete" disabled title="Del">Delete</button>
+    <button class="btn btn-success"   id="btnOpen"   disabled title="Ctrl+O">Open</button>
+    <div class="divider"></div>
+    <button class="btn btn-secondary" id="btnExport">Export JSON</button>
+    <button class="btn btn-secondary" id="btnImport">Import JSON</button>
+    <input  type="text" class="search-box" id="searchBox" placeholder="Search name / tags / target…  (Ctrl+F)">
+</div>
+
+<main>
+    <div class="drop-zone" id="dropZone">
+        <div class="drop-overlay">Drop to add shortcut</div>
+        <table id="mainTable">
+            <thead>
+                <tr>
+                    <th class="col-name"   data-col="name">Name</th>
+                    <th class="col-target" data-col="target">Target</th>
+                    <th class="col-tags">Tags</th>
+                    <th class="col-added"  data-col="addedUtc">Added (UTC)</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+        <div class="empty-state" id="emptyState" style="display:none">
+            <div class="icon">🔗</div>
+            <strong>No shortcuts yet</strong>
+            <p>Click <strong>+ Add</strong>, drag &amp; drop a URL, or <strong>Import JSON</strong> from your desktop app.</p>
+        </div>
+    </div>
+</main>
+
+<div class="statusbar">
+    <span id="statusCount">0 items</span>
+    <span id="statusSelected"></span>
+    <span class="hints">
+        <kbd>Ctrl+N</kbd> Add &nbsp;
+        <kbd>Ctrl+E</kbd> Edit &nbsp;
+        <kbd>Del</kbd> Delete &nbsp;
+        <kbd>Ctrl+O</kbd> Open &nbsp;
+        <kbd>Ctrl+F</kbd> Search &nbsp;
+        <kbd>Esc</kbd> Deselect
+    </span>
+</div>
+
+<!-- Add / Edit Modal -->
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal" role="dialog" aria-modal="true">
+        <div class="modal-header" id="modalTitle">Add Shortcut</div>
+        <div class="modal-body">
+            <div class="field">
+                <label>Target <span style="color:#dc3545">*</span></label>
+                <input type="text" id="fieldTarget" placeholder="https://example.com  or  \\server\share\file.txt">
+            </div>
+            <div class="field">
+                <label>Name <span class="hint">(auto-filled from target if blank)</span></label>
+                <input type="text" id="fieldName" placeholder="Display name">
+            </div>
+            <div class="field">
+                <label>Arguments <span class="hint">(optional — for executables)</span></label>
+                <input type="text" id="fieldArgs" placeholder="e.g. --verbose">
+            </div>
+            <div class="field">
+                <label>Tags <span class="hint">(comma-separated)</span></label>
+                <input type="text" id="fieldTags" placeholder="e.g. work, dev, tools">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" id="modalCancel">Cancel</button>
+            <button class="btn btn-primary"   id="modalOk">OK</button>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden file input for JSON import -->
+<input type="file" id="fileInput" accept=".json" style="display:none">
+
+<script>
+// ── Storage ───────────────────────────────────────────────────────────────────
+const STORAGE_KEY = 'linkdock_items';
+
+function loadItems() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+    catch { return []; }
+}
+
+function saveItems(items) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); }
+    catch (e) { alert('Failed to save: ' + e.message); }
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let items        = loadItems();
+let filtered     = [];
+let selectedIds  = new Set();
+let searchQuery  = '';
+let editingId    = null;
+let sortCol      = 'addedUtc';
+let sortDir      = -1; // -1 = newest first by default
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+function uid() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+function guessName(target) {
+    if (!target) return 'Shortcut';
+    try {
+        const u = new URL(target);
+        if (u.protocol === 'http:' || u.protocol === 'https:') {
+            const tail = u.pathname.replace(/\/$/, '').split('/').pop();
+            return decodeURIComponent(tail ? u.hostname + '/' + tail : u.hostname);
+        }
+    } catch {}
+    const parts = target.replace(/[/\\]+$/, '').split(/[/\\]/);
+    return parts[parts.length - 1] || target;
+}
+
+function isWebUrl(t) {
+    try { const u = new URL(t); return u.protocol === 'http:' || u.protocol === 'https:'; }
+    catch { return false; }
+}
+
+function fmtDate(iso) {
+    try { return new Date(iso).toISOString().slice(0, 10); } catch { return ''; }
+}
+
+function esc(s) {
+    return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function applyFilter() {
+    const q = searchQuery.trim().toLowerCase();
+    filtered = q
+        ? items.filter(item =>
+            q.split(/\s+/).every(p =>
+                (item.name   || '').toLowerCase().includes(p) ||
+                (item.target || '').toLowerCase().includes(p) ||
+                (item.tags   || '').toLowerCase().includes(p)
+            ))
+        : [...items];
+
+    filtered.sort((a, b) => {
+        const av = (a[sortCol] || '').toLowerCase();
+        const bv = (b[sortCol] || '').toLowerCase();
+        return av < bv ? -sortDir : av > bv ? sortDir : 0;
+    });
+}
+
+function renderTable() {
+    applyFilter();
+    const tbody  = document.getElementById('tableBody');
+    const empty  = document.getElementById('emptyState');
+    const table  = document.getElementById('mainTable');
+
+    // Update sort indicators on headers
+    document.querySelectorAll('th[data-col]').forEach(th => {
+        th.classList.remove('sort-asc', 'sort-desc');
+        if (th.dataset.col === sortCol)
+            th.classList.add(sortDir === 1 ? 'sort-asc' : 'sort-desc');
+    });
+
+    if (filtered.length === 0) {
+        table.style.display = 'none';
+        empty.style.display = 'block';
+    } else {
+        table.style.display = '';
+        empty.style.display = 'none';
+        tbody.innerHTML = filtered.map(item => {
+            const sel  = selectedIds.has(item.id) ? ' selected' : '';
+            const tags = (item.tags || '').split(',').map(t => t.trim()).filter(Boolean)
+                         .map(t => `<span class="tag-chip">${esc(t)}</span>`).join('');
+            const targetCell = isWebUrl(item.target)
+                ? `<a class="target-link" href="${esc(item.target)}" target="_blank" rel="noopener" title="${esc(item.target)}">${esc(item.target)}</a>`
+                : `<span title="${esc(item.target)}">${esc(item.target)}</span>`;
+            return `<tr class="${sel}" data-id="${item.id}">
+                <td title="${esc(item.name)}">${esc(item.name)}</td>
+                <td>${targetCell}</td>
+                <td>${tags}</td>
+                <td title="${esc(item.addedUtc)}">${fmtDate(item.addedUtc)}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    updateStatus();
+    updateButtons();
+}
+
+function updateStatus() {
+    const total = items.length;
+    const shown = filtered.length;
+    document.getElementById('statusCount').textContent =
+        shown === total ? `${total} item${total !== 1 ? 's' : ''}` : `${shown} of ${total} items`;
+    const sel = selectedIds.size;
+    document.getElementById('statusSelected').textContent = sel > 0 ? `${sel} selected` : '';
+}
+
+function updateButtons() {
+    const one  = selectedIds.size === 1;
+    const any  = selectedIds.size > 0;
+    document.getElementById('btnEdit').disabled   = !one;
+    document.getElementById('btnDelete').disabled = !any;
+    document.getElementById('btnOpen').disabled   = !one;
+}
+
+// ── Row selection ─────────────────────────────────────────────────────────────
+document.getElementById('tableBody').addEventListener('click', e => {
+    const row = e.target.closest('tr[data-id]');
+    if (!row) return;
+    // Let URL links open normally without selecting
+    if (e.target.classList.contains('target-link')) return;
+    const id = row.dataset.id;
+    if (e.ctrlKey || e.metaKey) {
+        selectedIds.has(id) ? selectedIds.delete(id) : selectedIds.add(id);
+    } else if (e.shiftKey && selectedIds.size > 0) {
+        const ids   = filtered.map(i => i.id);
+        const last  = ids.findLast(i => selectedIds.has(i));
+        const from  = ids.indexOf(last);
+        const to    = ids.indexOf(id);
+        ids.slice(Math.min(from,to), Math.max(from,to) + 1).forEach(i => selectedIds.add(i));
+    } else {
+        selectedIds.clear();
+        selectedIds.add(id);
+    }
+    renderTable();
+});
+
+document.getElementById('tableBody').addEventListener('dblclick', e => {
+    const row = e.target.closest('tr[data-id]');
+    if (!row || e.target.classList.contains('target-link')) return;
+    selectedIds.clear();
+    selectedIds.add(row.dataset.id);
+    openSelected();
+});
+
+// ── Open ──────────────────────────────────────────────────────────────────────
+function openSelected() {
+    if (selectedIds.size !== 1) return;
+    const item = items.find(i => i.id === [...selectedIds][0]);
+    if (!item) return;
+    const t = (item.target || '').trim();
+    if (!t) return;
+
+    if (isWebUrl(t)) {
+        window.open(t, '_blank', 'noopener,noreferrer');
+    } else {
+        // Non-URL: copy to clipboard and explain why it can't be launched
+        navigator.clipboard?.writeText(t).catch(() => {});
+        alert(
+            `"${t}"\n\n` +
+            `Browsers cannot open local files or folders directly — this is a security restriction built into all browsers.\n\n` +
+            `The path has been copied to your clipboard so you can paste it into Explorer.`
+        );
+    }
+}
+
+// ── Add / Edit modal ──────────────────────────────────────────────────────────
+function openModal(item) {
+    editingId = item ? item.id : null;
+    document.getElementById('modalTitle').textContent = item ? 'Edit Shortcut' : 'Add Shortcut';
+    document.getElementById('fieldTarget').value = item?.target || '';
+    document.getElementById('fieldName').value   = item?.name   || '';
+    document.getElementById('fieldArgs').value   = item?.args   || '';
+    document.getElementById('fieldTags').value   = item?.tags   || '';
+    document.getElementById('fieldTarget').classList.remove('error');
+    document.getElementById('modalOverlay').classList.add('open');
+    setTimeout(() => document.getElementById('fieldTarget').focus(), 60);
+}
+
+function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('open');
+    editingId = null;
+}
+
+function commitModal() {
+    const targetEl = document.getElementById('fieldTarget');
+    const target = targetEl.value.trim();
+    if (!target) {
+        targetEl.classList.add('error');
+        targetEl.focus();
+        return;
+    }
+    const name = document.getElementById('fieldName').value.trim() || guessName(target);
+    const args = document.getElementById('fieldArgs').value.trim();
+    const tags = document.getElementById('fieldTags').value.trim();
+
+    if (editingId) {
+        const idx = items.findIndex(i => i.id === editingId);
+        if (idx >= 0) items[idx] = { ...items[idx], name, target, args, tags };
+    } else {
+        items.push({ id: uid(), name, target, args, tags, addedUtc: new Date().toISOString() });
+    }
+    saveItems(items);
+    closeModal();
+    renderTable();
+}
+
+document.getElementById('btnAdd').addEventListener('click',    () => openModal(null));
+document.getElementById('btnEdit').addEventListener('click',   () => {
+    if (selectedIds.size !== 1) return;
+    openModal(items.find(i => i.id === [...selectedIds][0]));
+});
+document.getElementById('modalOk').addEventListener('click',     commitModal);
+document.getElementById('modalCancel').addEventListener('click', closeModal);
+document.getElementById('modalOverlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('modalOverlay')) closeModal();
+});
+document.getElementById('modalOverlay').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') { e.preventDefault(); commitModal(); }
+    if (e.key === 'Escape') closeModal();
+});
+document.getElementById('fieldTarget').addEventListener('input', () => {
+    document.getElementById('fieldTarget').classList.remove('error');
+});
+
+// ── Delete ────────────────────────────────────────────────────────────────────
+function deleteSelected() {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Delete ${selectedIds.size} item(s)?`)) return;
+    items = items.filter(i => !selectedIds.has(i.id));
+    selectedIds.clear();
+    saveItems(items);
+    renderTable();
+}
+
+document.getElementById('btnDelete').addEventListener('click', deleteSelected);
+document.getElementById('btnOpen').addEventListener('click',   openSelected);
+
+// ── Search ────────────────────────────────────────────────────────────────────
+let searchTimer;
+document.getElementById('searchBox').addEventListener('input', e => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => { searchQuery = e.target.value; renderTable(); }, 200);
+});
+
+// ── Column sort ───────────────────────────────────────────────────────────────
+document.querySelectorAll('th[data-col]').forEach(th => {
+    th.addEventListener('click', () => {
+        if (sortCol === th.dataset.col) sortDir *= -1;
+        else { sortCol = th.dataset.col; sortDir = 1; }
+        renderTable();
+    });
+});
+
+// ── Export ────────────────────────────────────────────────────────────────────
+document.getElementById('btnExport').addEventListener('click', () => {
+    const json = JSON.stringify(items, null, 2);
+    const a    = Object.assign(document.createElement('a'), {
+        href:     URL.createObjectURL(new Blob([json], { type: 'application/json' })),
+        download: 'linkdock_export.json'
+    });
+    a.click();
+    URL.revokeObjectURL(a.href);
+});
+
+// ── Import ────────────────────────────────────────────────────────────────────
+document.getElementById('btnImport').addEventListener('click', () =>
+    document.getElementById('fileInput').click()
+);
+
+document.getElementById('fileInput').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+        try {
+            const raw = JSON.parse(ev.target.result);
+            if (!Array.isArray(raw)) throw new Error('Expected a JSON array.');
+            let count = 0;
+            for (const item of raw) {
+                // Accept both camelCase (web) and PascalCase (desktop app export)
+                const target = (item.target || item.Target || '').trim();
+                if (!target) continue;
+                items.push({
+                    id:       uid(),
+                    name:     (item.name || item.Name || '').trim() || guessName(target),
+                    target,
+                    args:     item.args  || item.Args  || '',
+                    tags:     item.tags  || item.Tags  || '',
+                    addedUtc: item.addedUtc || item.AddedUtc || new Date().toISOString()
+                });
+                count++;
+            }
+            saveItems(items);
+            renderTable();
+            alert(`Imported ${count} item(s).`);
+        } catch (err) {
+            alert('Import failed: ' + err.message);
+        }
+        e.target.value = ''; // reset so same file can be re-imported
+    };
+    reader.readAsText(file);
+});
+
+// ── Drag & drop ───────────────────────────────────────────────────────────────
+const dropZone = document.getElementById('dropZone');
+let dragCounter = 0;
+
+dropZone.addEventListener('dragenter', e => {
+    e.preventDefault();
+    if (++dragCounter === 1) dropZone.classList.add('drag-over');
+});
+dropZone.addEventListener('dragleave', () => {
+    if (--dragCounter === 0) dropZone.classList.remove('drag-over');
+});
+dropZone.addEventListener('dragover', e => e.preventDefault());
+dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dragCounter = 0;
+    dropZone.classList.remove('drag-over');
+
+    const text = e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('text/uri-list');
+    if (!text) return;
+
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+    let added = 0;
+    for (const line of lines) {
+        items.push({ id: uid(), name: guessName(line), target: line, args: '', tags: 'dropped', addedUtc: new Date().toISOString() });
+        added++;
+    }
+    if (added) { saveItems(items); renderTable(); }
+});
+
+// ── Global keyboard shortcuts ─────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+    if (document.getElementById('modalOverlay').classList.contains('open')) return;
+    const tag = document.activeElement?.tagName;
+
+    if (e.ctrlKey && e.key === 'n') { e.preventDefault(); openModal(null); }
+    if (e.ctrlKey && e.key === 'e') {
+        e.preventDefault();
+        if (selectedIds.size === 1) openModal(items.find(i => i.id === [...selectedIds][0]));
+    }
+    if (e.ctrlKey && e.key === 'o') { e.preventDefault(); openSelected(); }
+    if (e.ctrlKey && e.key === 'f') {
+        e.preventDefault();
+        const sb = document.getElementById('searchBox');
+        sb.focus(); sb.select();
+    }
+    if (e.key === 'Delete' && tag !== 'INPUT' && tag !== 'TEXTAREA') deleteSelected();
+    if (e.key === 'Escape'  && tag !== 'INPUT') { selectedIds.clear(); renderTable(); }
+    if (e.key === 'Enter'   && tag !== 'INPUT' && tag !== 'BUTTON' && selectedIds.size === 1) openSelected();
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+renderTable();
+</script>
+</body>
+</html>
