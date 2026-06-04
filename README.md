@@ -38,6 +38,14 @@ The **Arguments** field lets you pass command-line parameters to an executable w
 
 The web version cannot open local file paths directly — this is a browser security restriction. Local paths are copied to your clipboard instead so you can paste them into Explorer.
 
+## Desktop App
+
+A full Windows desktop version is available that can open local files and folders directly.
+
+[⬇ Download LinkDock Desktop v1.0](https://github.com/LouHoe/LinkDock/releases/download/v1.0/LinkDock-Desktop.zip)
+
+Requires [.NET 8 runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0). No installation needed — just unzip and run.
+
 ## Deployment
 
 Hosted on [GitHub Pages](https://louhoe.github.io/LinkDock).
