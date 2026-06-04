@@ -44,7 +44,7 @@ A full Windows desktop version is available that can open local files and folder
 
 [⬇ Download LinkDock Desktop v1.0](https://github.com/LouHoe/LinkDock/releases/download/v1.0/LinkDock-Desktop.zip)
 
-Requires [.NET 8 runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0). No installation needed — just unzip and run.
+No installation needed — just unzip and run.
 
 ## Deployment
 
