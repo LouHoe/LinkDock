@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LinkDock</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔗</text></svg>">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -65,9 +66,14 @@
 
         .divider { width: 1px; background: #ddd; height: 24px; margin: 0 4px; flex-shrink: 0; }
 
-        .search-box {
+        .search-wrap {
             margin-left: auto;
-            padding: 6px 12px;
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .search-box {
+            padding: 6px 28px 6px 12px;
             border: 1px solid #d0d0d0;
             border-radius: 4px;
             font-size: 13px;
@@ -76,6 +82,20 @@
             transition: border-color 0.15s;
         }
         .search-box:focus { border-color: #1a1a2e; box-shadow: 0 0 0 2px rgba(26,26,46,0.1); }
+        .search-clear {
+            position: absolute;
+            right: 7px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #999;
+            font-size: 14px;
+            line-height: 1;
+            padding: 2px;
+            display: none;
+        }
+        .search-clear:hover { color: #333; }
+        .search-clear.visible { display: block; }
 
         /* ── Main ── */
         main {
@@ -280,7 +300,10 @@
        class="btn btn-secondary" title="Download the full Windows desktop version">
        ⬇ Desktop App
     </a>
-    <input  type="text" class="search-box" id="searchBox" placeholder="Search name / tags / target…  (Ctrl+F)">
+    <div class="search-wrap">
+        <input type="text" class="search-box" id="searchBox" placeholder="Search name / tags / target…  (Ctrl+F)">
+        <button class="search-clear" id="btnClearSearch" title="Clear search">✕</button>
+    </div>
 </div>
 
 <main>
@@ -313,6 +336,7 @@
         <kbd>Ctrl+E</kbd> Edit &nbsp;
         <kbd>Del</kbd> Delete &nbsp;
         <kbd>Ctrl+O</kbd> Open &nbsp;
+        <kbd>Ctrl+A</kbd> Select all &nbsp;
         <kbd>Ctrl+F</kbd> Search &nbsp;
         <kbd>Esc</kbd> Deselect
     </span>
@@ -671,9 +695,21 @@ document.getElementById('btnOpen').addEventListener('click',   openSelected);
 
 // ── Search ────────────────────────────────────────────────────────────────────
 let searchTimer;
-document.getElementById('searchBox').addEventListener('input', e => {
+const searchBox   = document.getElementById('searchBox');
+const clearBtn    = document.getElementById('btnClearSearch');
+
+searchBox.addEventListener('input', e => {
     clearTimeout(searchTimer);
+    clearBtn.classList.toggle('visible', e.target.value.length > 0);
     searchTimer = setTimeout(() => { searchQuery = e.target.value; renderTable(); }, 200);
+});
+
+clearBtn.addEventListener('click', () => {
+    searchBox.value = '';
+    clearBtn.classList.remove('visible');
+    searchQuery = '';
+    renderTable();
+    searchBox.focus();
 });
 
 // ── Column sort ───────────────────────────────────────────────────────────────
@@ -780,6 +816,7 @@ document.addEventListener('keydown', e => {
         const sb = document.getElementById('searchBox');
         sb.focus(); sb.select();
     }
+    if (e.ctrlKey && e.key === 'a' && tag !== 'INPUT') { e.preventDefault(); filtered.forEach(i => selectedIds.add(i.id)); renderTable(); }
     if (e.key === 'Delete' && tag !== 'INPUT' && tag !== 'TEXTAREA') deleteSelected();
     if (e.key === 'Escape'  && tag !== 'INPUT') { selectedIds.clear(); renderTable(); }
     if (e.key === 'Enter'   && tag !== 'INPUT' && tag !== 'BUTTON' && selectedIds.size === 1) openSelected();
